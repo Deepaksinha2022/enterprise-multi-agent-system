@@ -1,0 +1,9 @@
+{
+  "source": {
+    "kind": "uv",
+    "root": ".."
+  },
+   "graphs": {
+    "hello": "./app/graph/graph.py:graph"
+  }
+}
