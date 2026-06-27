@@ -7,6 +7,7 @@ from app.graph.reducers import add_results
 # WHY:
 # Every LangGraph execution starts with an initial state.
 
+
 state: GraphState = {
     "messages": [],
     "task": "",

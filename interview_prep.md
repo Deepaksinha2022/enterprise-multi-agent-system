@@ -1566,3 +1566,163 @@ The architecture scales because it combines:
 - Enterprise observability
 
 These principles allow large multi-agent systems to remain maintainable, extensible, and production-ready.
+
+*********************************************************
+Day-6 questions -answers
+*************************************************************
+Question - Why does LangGraph use a checkpoint backend like SQLite instead of keeping checkpoints only in memory?
+
+Answer - SQLite stores checkpoints on persistent disk rather than in volatile memory. If the application crashes, is interrupted, or restarts, in-memory state is lost, whereas SQLite preserves the checkpoint. LangGraph can then restore the last saved state and resume execution instead of restarting the workflow. This provides crash recovery, fault tolerance, and support for long-running enterprise workflows.
+
+********************************************
+Question - Why is the checkpointer passed to graph.compile() instead of passing it to individual nodes?
+
+Answer - The checkpointer is passed to graph.compile() because checkpointing is a graph-level concern, not a node-level concern. Nodes should focus only on their business logic, while LangGraph manages state propagation, checkpoint creation, and checkpoint restoration. This separation of concerns keeps nodes simple, reusable, and independent of the persistence mechanism.
+
+****************************************************************
+Question - Why does LangGraph store messages as HumanMessage, AIMessage, and ToolMessage objects instead of plain strings?
+
+Answer - LangGraph uses structured message objects such as HumanMessage, AIMessage, and ToolMessage instead of plain strings because each message represents a different participant in the workflow. HumanMessage contains the user's input, AIMessage stores the LLM's reasoning, responses, or tool calls, and ToolMessage contains the output returned by tools. These structured objects also carry metadata such as IDs, tool call information, and response metadata. This makes the workflow easier to trace, debug, monitor, and maintain, whereas plain strings would lose information about the sender, context, and execution history.
+
+***************************************************************
+
+Question - Why is interrupt() better than raising an exception when implementing Human-in-the-Loop workflows?
+
+Answer - interrupt() pauses the workflow gracefully after saving the current checkpoint, allowing it to resume later from the same point. Raising an exception indicates an error and typically terminates the workflow unless explicitly handled. interrupt() is designed for human-in-the-loop scenarios, approvals, waiting for external events, or user input, without losing workflow progress.
+
+****************************************************************
+
+Question - Why is the thread_id essential for checkpoint recovery? What would happen if every workflow used the same thread ID?
+
+Answer - The thread_id uniquely identifies a workflow or conversation. During checkpoint recovery, LangGraph uses the thread_id to retrieve the correct checkpoint from the checkpoint store. If multiple workflows used the same thread_id, their checkpoints could overwrite or mix with each other, leading to incorrect state restoration, corrupted execution, and users potentially resuming another user's workflow. Using unique thread IDs ensures isolation, correctness, and reliable recovery for each workflow.
+
+************************************************************
+
+Question - Why do you think the messages list keeps growing every time you run the graph with the same thread_id?
+
+Answer - The messages list keeps growing because the workflow is executed with the same thread_id, so LangGraph restores the previous checkpoint before continuing. Since the messages field uses the add_messages reducer, new messages are appended to the existing conversation history instead of replacing it. Together, checkpoint restoration and the reducer preserve the conversation across multiple executions.
+
+**************************************************************
+Question - what is command(resume=True)
+
+Answer - Command(resume=True) tells LangGraph to load the saved checkpoint associated with the given thread_id and continue execution from the interruption point. Re-sending the original user message would start a new workflow execution and could repeat previously completed operations, whereas resuming avoids duplicate execution and preserves workflow progress.
+
+***************************************************************
+Question - Where should checkpoints ideally be created in a production workflow?
+
+Answer - Checkpoints should be created at important milestones, especially after expensive or irreversible operations such as API calls, database writes, long-running computations, or before human approval steps. Creating checkpoints after every node adds storage overhead and can reduce performance, while creating too few checkpoints increases the amount of work that must be repeated after a failure.
+
+*************************************************************
+
+Question - where to put checkpoint - checkpoint pattern
+Answer - Checkpoint after expensive, long-running, irreversible, or human-wait steps—not after every trivial node.
+
+**************************************************************
+
+Question 1
+
+Why do we need checkpointing in LangGraph?
+
+Checkpointing allows a workflow to resume from the last saved execution point after a crash, interruption, or restart instead of starting from the beginning. It saves the workflow state and execution position, preventing expensive operations like retrieval, API calls, or long-running tasks from being executed again.
+
+Questions 2
+
+Why is SqliteSaver preferred over an in-memory checkpoint for production-like workflows?
+
+SqliteSaver stores checkpoints on persistent disk storage instead of memory. Unlike in-memory checkpoints, they survive application crashes and restarts. This allows LangGraph to restore the saved workflow state and execution position using the same thread_id, enabling resume, debugging, and monitoring.
+
+Question 3
+
+What is stored in checkpoints.db?
+
+checkpoints.db stores the workflow state, the execution position (where execution should resume), the associated thread_id, and checkpoint metadata. LangGraph uses this information to restore the workflow after a crash or interruption.
+
+Question 4
+
+What is the purpose of thread_id?
+
+thread_id uniquely identifies a workflow. LangGraph uses it to retrieve the correct checkpoint from persistent storage during resume. This prevents collisions between multiple concurrent workflows and ensures the correct workflow state is restored.
+
+Question 5
+
+What happens internally when interrupt() is called?
+
+When interrupt() is called, LangGraph pauses the workflow, saves the current workflow state, execution position, and metadata to the configured checkpointer using the existing thread_id, then returns control to the caller. When Command(resume=...) is later invoked with the same thread_id, execution continues from the interruption point.
+
+Question 6
+
+Why doesn't Command(resume="approved") resume the workflow on the very first run?
+
+On the first run, Command(resume=...) has no effect because no interrupted checkpoint exists for the given thread_id. LangGraph starts the workflow from START. After an interrupt() occurs, a checkpoint is saved. On subsequent runs with the same thread_id, Command(resume=...) loads that checkpoint and resumes execution.
+
+Question 7
+
+Explain the complete flow from:
+
+graph.invoke(
+    Command(resume="approved"),
+    config=config,
+)
+
+until the workflow completes after resuming.
+
+graph.invoke(Command(resume="approved"), config) is called. LangGraph checks the thread_id for an interrupted checkpoint. If one exists, it loads the saved workflow state, execution position, and metadata from the checkpointer. The value "approved" is returned from the previous interrupt() call, and execution continues from the next line after interrupt(). The remaining nodes execute, and the workflow reaches END, returning the final state.
+
+Queston - 8 
+
+How did you verify that the workflow resumed instead of restarting from START?
+
+I verified it by observing that after calling Command(resume="approved"), the workflow did not execute interrupt() again. Instead, it printed Resumed with: approved and immediately executed second_node, proving that LangGraph restored the checkpoint and continued from the interruption point rather than restarting from START.
+
+Question 9
+
+What is a checkpoint pattern?
+
+answer
+
+A checkpoint pattern is the strategy for deciding where checkpoints should be placed in a workflow. Instead of checkpointing after every node, checkpoints are placed after expensive operations, long-running tasks, irreversible actions, external API calls, or human-in-the-loop waiting points to balance recovery capability with storage and performance overhead.
+
+Question 10
+
+Suppose you have this workflow:
+
+Planner
+   │
+Retriever
+   │
+Web Search
+   │
+Database Write
+   │
+Human Approval
+   │
+LLM
+
+Where would you place checkpoints and why?
+
+answer
+
+I would place checkpoints after the Retriever, Web Search, Database Write, and before Human Approval. Retriever and Web Search are expensive operations, Database Write is irreversible, and Human Approval may pause the workflow for a long time. Checkpointing at these stages prevents repeating completed work after a crash.
+
+Question 11
+
+Explain crash recovery using the project you built today.
+
+During the first run, the workflow reaches interrupt(), and LangGraph saves the checkpoint containing the workflow state, execution position, metadata, and associates it with the existing thread_id. Control is returned to the caller. If the application crashes or is stopped, after restart Command(resume=...) loads the saved checkpoint using the same thread_id, restores the workflow, and continues executing the remaining nodes instead of restarting from START.
+
+Question 12
+What is idempotency, and why is it important in checkpoint-based systems?
+
+Idempotency means an operation can be executed multiple times but produces the same final result without causing duplicate side effects. It is important in checkpoint-based systems because after a crash or retry, the same node may execute again. Idempotency prevents duplicate database writes, payments, emails, or API requests
+
+Question 13
+
+What is idempotency, and why is it important in checkpoint-based systems?
+
+No. LangGraph does not automatically implement idempotency. It is the developer's responsibility to make nodes idempotent by using techniques such as unique IDs, idempotency keys, database existence checks, or deduplication logic to prevent duplicate side effects during retries or resume.
+
+Question 14
+
+How do checkpointing and idempotency together prevent charging the customer twice after restart?
+
+Before the crash, checkpointing saves the workflow state, execution position, metadata, and associates it with the thread_id. After restart, LangGraph resumes the workflow from that checkpoint instead of restarting. Since the Payment API node may execute again, idempotency ensures the payment is not processed twice by checking a unique payment ID or idempotency key. If the payment has already been completed, the node skips the payment call and continues the workflow.

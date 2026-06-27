@@ -1,19 +1,29 @@
-# WHAT: Executes the graph.
+from langgraph.checkpoint.sqlite import SqliteSaver
 
-from app.graph.graph import graph
+from app.graph.graph import build_graph
 
-result = graph.invoke(
-    {
-        "message": ""
+from langgraph.types import Command
+
+with SqliteSaver.from_conn_string("checkpoints.db") as checkpointer:
+
+    graph = build_graph(
+        checkpointer
+    )
+
+    config = {
+        "configurable": {
+            "thread_id": "kill-demo"
+        }
     }
-)
+
+    result = graph.invoke(
+    Command(resume="approved"),
+    config=config,
+    )
+
+    # What is Command?
+    # Command is a special instruction sent to LangGraph.
 
 print(result)
 
-# # flow
-# graph.invoke() receives the initial state.
-# The compiled graph starts execution from START.
-# The state is passed to the first node (hello_node).
-# The node performs its task, updates the state, and returns it.
-# LangGraph follows the defined edges to the next node (or END).
-# When END is reached, invoke() returns the final updated state.
+

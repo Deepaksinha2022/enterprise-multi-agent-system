@@ -2,9 +2,20 @@
 
 from app.graph.state import GraphState
 
+from langgraph.types import interrupt
+
+# interrupt stop execution here. Save the current checkpoint
+# Return control to the caller
 def hello_node(state: GraphState) -> GraphState:
-    # state: GraphState → indicates the function 
-    # takes a GraphState object as input.
-    # -> indicates the function returns a GraphState object.
-    state["message"] = "Hello Langgraph!"
+
+    resume_value = interrupt("Paused after hello node.")
+
+    print(f">>> Resumed with: {resume_value}")
+
     return state
+
+def second_node(state:GraphState) -> GraphState:
+   
+   print("Second node executed")
+
+   return state

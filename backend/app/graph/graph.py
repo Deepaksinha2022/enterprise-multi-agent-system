@@ -4,16 +4,30 @@
 from langgraph.graph import StateGraph, START, END
 
 from app.graph.state import GraphState
-from app.graph.nodes import hello_node
 
-# create a langgraph workflow builder that uses 
-# GraphState as the shared state object.
-# holdes all nodes,edges and shared state for the workflow.
-builder = StateGraph(GraphState)
+from app.graph.nodes import hello_node,second_node
 
-builder.add_node("hello", hello_node)
 
-builder.add_edge(START, "hello")
-builder.add_edge("hello", END)
+def build_graph(checkpointer=None):
+    
+    builder = StateGraph(GraphState)
 
-graph = builder.compile()
+    builder.add_node("hello", hello_node)
+
+    builder.add_node("second", second_node)
+
+    builder.add_edge(START, "hello")
+
+    builder.add_edge("hello", "second")
+
+    builder.add_edge("second", END)
+
+    return builder.compile(
+        checkpointer=checkpointer
+    )
+
+# WHAT:
+# Compile the graph with checkpoint support.
+
+# WHY:
+# Enables LangGraph to automatically save and restore state.
