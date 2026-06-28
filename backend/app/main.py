@@ -1,5 +1,14 @@
 from fastapi import FastAPI
 
+from app.auth.middleware import get_current_user
+from fastapi import Depends
+
+from app.auth.roles import (
+    require_role,
+    ADMIN,
+    AGENT_OPERATOR
+)
+
 # WHAT: Runs code when app starts and stops.
 # WHY: Initialize resources such as DB, Redis, agents.
 
@@ -23,9 +32,18 @@ app = FastAPI(
 )
 # tells to FastAPI to use the lifespan function for startup and shutdown events.
 
+# Depends is FastAPI's dependency injection mechanism. 
+# It automatically executes another function before the 
+# route handler and injects its return value into the route.
+
 @app.get("/")
-async def root():
-    return {"message": "MAS Running"}
+async def root(
+    user=Depends(get_current_user)
+):
+    return {
+        "message": "MAS Running",
+        "user": user
+    }
 
 from app.db.database import engine
 
@@ -43,3 +61,18 @@ async def health():
 
     except Exception:
         return {"status": "unhealthy"}
+
+# POST is used when you want to create or trigger something
+@app.post("/launch-agent")
+async def launch_agent(
+    user=Depends(get_current_user)
+    ):
+
+    require_role(
+        user,
+        [ADMIN, AGENT_OPERATOR]
+    )
+
+    return {
+        "message": "Agent launched successfully."
+    }
