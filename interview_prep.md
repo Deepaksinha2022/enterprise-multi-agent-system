@@ -1934,3 +1934,23 @@ Initially, the Supervisor routed "Research LangGraph" to code_agent because Lang
 
 --------------------------------------------------------------
 
+Question 7
+
+What is the difference between the Supervisor and the Router in our implementation?
+
+The Supervisor is the decision-making component. It uses an LLM to understand the user's intent and determine which specialized agent should handle the request. The Router is the routing mechanism. In our implementation, it acts as a fallback by using rule-based keyword matching when the Supervisor returns an invalid or unexpected response. This separation keeps the decision logic and routing logic modular and easier to maintain.
+
+-------------------------------------------------------------
+
+Question - 8
+
+Why did we test the Supervisor with 10 diverse tasks instead of only 2 or 3 examples?
+
+We tested the Supervisor with 10 diverse tasks to evaluate whether the LLM could correctly classify different user intents across multiple domains such as research, writing, and coding. A small number of examples is insufficient to assess generalization. Using diverse tasks helps identify prompt weaknesses, routing ambiguities, and misclassifications, allowing us to improve the Supervisor's routing accuracy before deployment.
+
+-------------------------------------------------------------
+
+Question 9
+Describe the complete request flow in our Supervisor Agent, from the moment the user sends a request until the selected agent is returned.
+
+When a user submits a request, it is passed to the Supervisor Agent. The Supervisor combines the user request with the SUPERVISOR_PROMPT and sends it to the LLM. The LLM performs intent classification and returns exactly one valid agent name: research_agent, writer_agent, or code_agent. The Supervisor validates the returned agent. If it is one of the allowed agents, it is returned as the routing decision. If the LLM returns an invalid or unexpected response, the Supervisor invokes the fallback router, which uses rule-based keyword matching to select an appropriate agent. The selected agent is then returned and is ready to execute the user's request.
