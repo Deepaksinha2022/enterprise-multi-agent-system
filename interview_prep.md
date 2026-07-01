@@ -72,13 +72,13 @@ Q12. What is metadata?
 Answer:
 Metadata stores information about all database tables such as table names, columns, constraints and relationships.
 
---------------------------------------------------
+-------------------------------------------------------------------------------
 
 Q13. What does metadata.create_all() do?
 Answer:
 It creates all database tables defined by models that inherit from Base if they do not already exist.
 
---------------------------------------------------
+--------------------------------------------------------------------------------
 
 Q14. What is run_sync()?
 Answer:
@@ -104,21 +104,21 @@ UserCreate is the Pydantic model that validates incoming API request data.
 
 This separates database logic from validation logic and improves modularity.
 
---------------------------------------------------
+-------------------------------------------------------------------------
 
 Q17. What is Pydantic?
 
 Answer:
 Pydantic is a data validation library that validates request and response data using Python type hints.
 
---------------------------------------------------
+---------------------------------------------------------------------------
 
 Q18. What is a Pydantic Model?
 
 Answer:
 A Pydantic model is a Python class used to validate and serialize data before it enters or leaves the application.
 
---------------------------------------------------
+-------------------------------------------------------------------------------
 
 Q19. What is @asynccontextmanager?
 
@@ -129,14 +129,14 @@ Everything before yield runs during startup.
 
 Everything after yield runs during shutdown.
 
---------------------------------------------------
+-----------------------------------------------------------------------------
 
 Q20. Why do we need lifespan()?
 
 Answer:
 It automates startup and shutdown tasks like initializing database connections, caches, models, or cleaning resources without doing them manually.
 
---------------------------------------------------
+----------------------------------------------------------------------------
 
 Q21. Why do we need the /health endpoint?
 
@@ -264,7 +264,7 @@ Q38. What is the datatype of graph.stream()?
 Answer:
 graph.stream() returns an iterator (generator) that yields one node's output at a time.
 
--------------------------------------------------
+----------------------------------------------------------------------------------
 
 Q42. Explain graph.invoke() execution flow.
 
@@ -277,21 +277,21 @@ Answer:
 6. Execution reaches END.
 7. The final updated state is returned.
 
---------------------------------------------------
+----------------------------------------------------------------------------------
 
 Q43. Why do we need START and END?
 
 Answer:
 START defines where execution begins and END defines where execution finishes. LangGraph follows the edges between nodes until END is reached.
 
---------------------------------------------------
+---------------------------------------------------------------------------------
 
 Q44. Difference between a node and the state?
 
 Answer:
 The state is the shared data passed between all nodes in the workflow. A node is a function that reads the current state, performs its task, updates the state, and returns it.
 
---------------------------------------------------
+------------------------------------------------------------------------------------
 
 Q45. Why split Planner → Retriever → Synthesizer instead of one large function?
 
@@ -1574,50 +1574,50 @@ Question - Why does LangGraph use a checkpoint backend like SQLite instead of ke
 
 Answer - SQLite stores checkpoints on persistent disk rather than in volatile memory. If the application crashes, is interrupted, or restarts, in-memory state is lost, whereas SQLite preserves the checkpoint. LangGraph can then restore the last saved state and resume execution instead of restarting the workflow. This provides crash recovery, fault tolerance, and support for long-running enterprise workflows.
 
-********************************************
+********************************************-------------------------------------
 Question - Why is the checkpointer passed to graph.compile() instead of passing it to individual nodes?
 
 Answer - The checkpointer is passed to graph.compile() because checkpointing is a graph-level concern, not a node-level concern. Nodes should focus only on their business logic, while LangGraph manages state propagation, checkpoint creation, and checkpoint restoration. This separation of concerns keeps nodes simple, reusable, and independent of the persistence mechanism.
 
-****************************************************************
+---------------------------------------------------------------------------------
 Question - Why does LangGraph store messages as HumanMessage, AIMessage, and ToolMessage objects instead of plain strings?
 
 Answer - LangGraph uses structured message objects such as HumanMessage, AIMessage, and ToolMessage instead of plain strings because each message represents a different participant in the workflow. HumanMessage contains the user's input, AIMessage stores the LLM's reasoning, responses, or tool calls, and ToolMessage contains the output returned by tools. These structured objects also carry metadata such as IDs, tool call information, and response metadata. This makes the workflow easier to trace, debug, monitor, and maintain, whereas plain strings would lose information about the sender, context, and execution history.
 
-***************************************************************
+---------------------------------------------------------------------------------
 
 Question - Why is interrupt() better than raising an exception when implementing Human-in-the-Loop workflows?
 
 Answer - interrupt() pauses the workflow gracefully after saving the current checkpoint, allowing it to resume later from the same point. Raising an exception indicates an error and typically terminates the workflow unless explicitly handled. interrupt() is designed for human-in-the-loop scenarios, approvals, waiting for external events, or user input, without losing workflow progress.
 
-****************************************************************
+---------------------------------------------------------------------------------
 
 Question - Why is the thread_id essential for checkpoint recovery? What would happen if every workflow used the same thread ID?
 
 Answer - The thread_id uniquely identifies a workflow or conversation. During checkpoint recovery, LangGraph uses the thread_id to retrieve the correct checkpoint from the checkpoint store. If multiple workflows used the same thread_id, their checkpoints could overwrite or mix with each other, leading to incorrect state restoration, corrupted execution, and users potentially resuming another user's workflow. Using unique thread IDs ensures isolation, correctness, and reliable recovery for each workflow.
 
-************************************************************
+---------------------------------------------------------------------------------
 
 Question - Why do you think the messages list keeps growing every time you run the graph with the same thread_id?
 
 Answer - The messages list keeps growing because the workflow is executed with the same thread_id, so LangGraph restores the previous checkpoint before continuing. Since the messages field uses the add_messages reducer, new messages are appended to the existing conversation history instead of replacing it. Together, checkpoint restoration and the reducer preserve the conversation across multiple executions.
 
-**************************************************************
+---------------------------------------------------------------------------------
 Question - what is command(resume=True)
 
 Answer - Command(resume=True) tells LangGraph to load the saved checkpoint associated with the given thread_id and continue execution from the interruption point. Re-sending the original user message would start a new workflow execution and could repeat previously completed operations, whereas resuming avoids duplicate execution and preserves workflow progress.
 
-***************************************************************
+---------------------------------------------------------------------------------
 Question - Where should checkpoints ideally be created in a production workflow?
 
 Answer - Checkpoints should be created at important milestones, especially after expensive or irreversible operations such as API calls, database writes, long-running computations, or before human approval steps. Creating checkpoints after every node adds storage overhead and can reduce performance, while creating too few checkpoints increases the amount of work that must be repeated after a failure.
 
-*************************************************************
+---------------------------------------------------------------------------------
 
 Question - where to put checkpoint - checkpoint pattern
 Answer - Checkpoint after expensive, long-running, irreversible, or human-wait steps—not after every trivial node.
 
-**************************************************************
+---------------------------------------------------------------------------------
 
 Question 1
 
@@ -1776,7 +1776,7 @@ Question 7
 
 What is HTTPAuthorizationCredentials?
 
-TTPAuthorizationCredentials is a FastAPI class that stores the authentication information extracted from the Authorization header. It contains two fields: scheme (e.g., "Bearer") and credentials (the JWT token). HTTPBearer() creates this object and passes it to the application for token verification.
+HTTPAuthorizationCredentials is a FastAPI class that stores the authentication information extracted from the Authorization header. It contains two fields: scheme (e.g., "Bearer") and credentials (the JWT token). HTTPBearer() creates this object and passes it to the application for token verification.
 
 Question 8
 
@@ -1801,3 +1801,84 @@ Question 11
 Suppose a user with the viewer role sends a valid JWT to POST /launch-agent. Describe the complete request flow until the response is returned.
 
 When the client sends a request to POST /launch-agent with a valid viewer JWT, FastAPI first executes Depends(get_current_user). HTTPBearer extracts the JWT from the Authorization header and passes it to verify_token(). verify_token() verifies the RS256 signature using the public key and checks the token expiration. If the token is valid, it returns the decoded payload containing the user's role. The endpoint then calls require_role(user, [ADMIN, AGENT_OPERATOR]). Since the user's role is viewer, it is not in the allowed roles, so require_role() raises an HTTPException with status code 403 Forbidden. The endpoint is never executed, and the client receives a 403 Permission denied response.
+
+---------------------------------------------------------------------------------
+Day - 8
+---------------------------------------------------------------------------------
+
+What is SIEM?
+
+Security Information and Event Management
+
+A central platform that collects, stores, searches, and analyzes logs from all systems.
+
+---------------------------------------------------------------------------------
+
+Question 1
+
+What is audit logging, and why is it important in enterprise AI systems?
+
+Audit logging is the process of recording important events and actions performed by users and AI agents in a system. Each audit log typically includes the user, agent type, action performed, input and output hashes, timestamp, duration, and a unique trace ID. These logs are stored in files or databases to support auditing, debugging, compliance, security investigations, and performance monitoring.
+
+---------------------------------------------------------------------------------
+
+Question 2
+
+Why do we store input_hash and output_hash instead of the actual input and output?
+
+We store input_hash and output_hash instead of the actual input and output to protect sensitive user data and maintain privacy. A cryptographic hash acts as a one-way fingerprint, meaning the original text cannot be reconstructed from the hash. Hashes also allow us to verify data integrity by checking whether the same input or output was processed without storing the actual content.
+
+--------------------------------------------------------------------------------
+
+Question - 3
+
+What is structured logging, and why is JSON preferred over plain text logs?
+
+Structured logging is the practice of storing log entries in a predefined, structured format where each piece of information is stored as a separate field, such as user, action, timestamp, and trace ID. JSON is preferred over plain text because it is machine-readable, standardized, easy to parse, search, filter, and index by logging platforms such as Elasticsearch, Splunk, and SIEM tools.
+
+--------------------------------------------------------------------------------
+
+Question 4
+
+What is a Trace ID, and why is it important in a multi-agent system?
+
+A Trace ID is a globally unique identifier assigned to a request or workflow execution. Every component involved in processing that request—such as agents, tools, databases, and LLMs—logs the same Trace ID. This allows us to correlate logs, reconstruct the complete execution flow, simplify debugging, investigate failures, and support auditing across distributed multi-agent systems.
+
+---------------------------------------------------------------------------------
+
+Question 5
+
+Why did we make write_audit_log() asynchronous?
+
+write_audit_log() was made asynchronous because audit logging is an I/O-bound operation involving file, database, or network writes. Using async and await allows the coroutine to suspend while waiting for I/O, enabling the event loop to execute other coroutines instead of blocking the application. This improves concurrency and scalability under multiple simultaneous requests.
+
+--------------------------------------------------------------------------------
+
+Question 6
+
+Why did we use uuid.uuid4() instead of simple IDs like 1, 2, 3 for the Trace ID?
+
+We use uuid.uuid4() because it generates a globally unique 128-bit random identifier. Unlike sequential IDs such as 1, 2, or 3, UUIDs are extremely unlikely to collide across different servers or services and are difficult to predict. This makes them ideal for identifying requests and correlating logs in distributed multi-agent systems.
+
+--------------------------------------------------------------------------------
+
+Question 7
+
+What is SIEM, and how does it use our audit logs?
+
+SIEM (Security Information and Event Management) is a centralized platform that collects, stores, searches, and analyzes logs from multiple systems. In our project, the audit logs generated by the agents are forwarded to a SIEM, where they can be searched by fields such as user, action, trace ID, or timestamp. SIEM also detects suspicious activities, generates security alerts, supports compliance reporting, and helps investigate incidents.
+
+---------------------------------------------------------------------------------
+
+Question 8
+
+Suppose a user asks a question that triggers the Planner Agent, Web Search Agent, Retriever, and LLM. How would the Trace ID appear in the audit logs, and why is that useful?
+
+When a user submits a request, a unique Trace ID is generated. Every component involved in processing that request—such as the Planner Agent, Web Search Agent, Retriever, and LLM—writes an audit log containing the same Trace ID. This allows all logs related to a single request to be correlated, making it easy to reconstruct the execution flow, debug failures, investigate incidents, perform auditing, and forward correlated logs to SIEM platforms.
+
+--------------------------------------------------------------------------------
+
+Question 9
+Describe the complete audit logging flow in our project, from the moment a user sends a request until the log is available for querying.
+
+When a user sends a request, a unique Trace ID is generated for that request. As the request passes through different agents (such as the Planner, Web Search Agent, Retriever, and LLM), each component creates an AuditLog containing fields like user, agent type, action, input hash, output hash, duration, timestamp, and the shared Trace ID. The write_audit_log() function converts the Pydantic model to a dictionary using model_dump(), serializes it into JSON using json.dumps(), and asynchronously writes it to audit.log. Later, the audit trail can be queried by fields such as user, action, or Trace ID. In an enterprise system, these JSON logs are typically forwarded to a SIEM platform for centralized monitoring, security analysis, compliance, and incident investigation.

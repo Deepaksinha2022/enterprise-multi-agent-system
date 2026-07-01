@@ -22,7 +22,6 @@ def create_token(username: str, role: str):
     algorithm="RS256"
     )
 
-
 token = create_token(
     "deepak",
     "viewer"

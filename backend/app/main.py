@@ -39,7 +39,7 @@ app = FastAPI(
 @app.get("/")
 async def root(
     user=Depends(get_current_user)
-):
+    ):
     return {
         "message": "MAS Running",
         "user": user
@@ -50,6 +50,7 @@ from app.db.database import engine
 # checkin if the database is reachable when /health endpoint is
 # called. If the database is reachable, it returns a healthy 
 # status; otherwise, it returns an unhealthy status.
+
 @app.get("/health")
 async def health():
 

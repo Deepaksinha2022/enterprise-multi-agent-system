@@ -24,5 +24,5 @@ async def create_tables():
         # Base.metadata.create_all() scans all models inheriting 
         # from Base and creates the corresponding tables 
         # in the database if they don't already exist.
-
+        
 asyncio.run(create_tables())

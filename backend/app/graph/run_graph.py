@@ -25,5 +25,3 @@ with SqliteSaver.from_conn_string("checkpoints.db") as checkpointer:
     # Command is a special instruction sent to LangGraph.
 
 print(result)
-
-
