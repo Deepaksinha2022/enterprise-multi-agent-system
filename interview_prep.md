@@ -1882,3 +1882,55 @@ Question 9
 Describe the complete audit logging flow in our project, from the moment a user sends a request until the log is available for querying.
 
 When a user sends a request, a unique Trace ID is generated for that request. As the request passes through different agents (such as the Planner, Web Search Agent, Retriever, and LLM), each component creates an AuditLog containing fields like user, agent type, action, input hash, output hash, duration, timestamp, and the shared Trace ID. The write_audit_log() function converts the Pydantic model to a dictionary using model_dump(), serializes it into JSON using json.dumps(), and asynchronously writes it to audit.log. Later, the audit trail can be queried by fields such as user, action, or Trace ID. In an enterprise system, these JSON logs are typically forwarded to a SIEM platform for centralized monitoring, security analysis, compliance, and incident investigation.
+
+--------------------------------------------------------------
+
+Day - 9
+
+Question 1
+What is a Supervisor Agent, and why do we need it in a multi-agent system?
+
+A Supervisor Agent is an LLM-based coordinator that receives a user request, understands its intent, and delegates the task to the most appropriate specialized agent. It centralizes routing decisions, allowing each agent to focus on a single responsibility such as research, writing, or coding. If the LLM returns an invalid or unexpected agent, the Supervisor uses a fallback strategy, such as rule-based routing or retrying the LLM, to ensure the request is still handled reliably.
+
+---------------------------------------------------------------
+
+Question 2
+
+What is intent classification, and how did we implement it in our project?
+
+Intent classification is the process of determining the user's objective from a natural language request. Instead of relying on exact keyword matching, an LLM analyzes the meaning and context of the request to identify the user's intent and select the most appropriate agent. In our project, we implemented intent classification by prompting the Supervisor LLM to choose exactly one agent—research_agent, writer_agent, or code_agent—based on the user's request.
+
+--------------------------------------------------------------
+
+Question 3
+Why is an LLM-based router better than a keyword-based router?
+
+An LLM-based router is better than a keyword-based router because it understands the semantic meaning and context of a user's natural language request rather than relying on exact keyword matches. This enables it to correctly classify ambiguous or differently phrased requests and route them based on the user's intent. Keyword-based routing is faster and deterministic but often fails when the required keywords are missing or when the same keywords appear in different contexts.
+
+----------------------------------------------------------------
+
+Question 4
+Why did we include a fallback mechanism in the Supervisor?
+
+A fallback mechanism improves the reliability of the Supervisor. Since LLMs are probabilistic, they may occasionally return an invalid, unexpected, or incorrectly formatted response. Instead of failing, the Supervisor invokes a fallback strategy such as a rule-based router or an LLM retry to ensure a valid agent is selected. This makes the routing process more robust and fault tolerant.
+
+---------------------------------------------------------------
+
+Question - 5
+
+Question 5
+
+Why did we ask the LLM to "Return only the agent name" in the prompt?
+
+We instructed the LLM to "Return only the agent name" to produce a deterministic and machine-readable output. The Supervisor expects exactly one of research_agent, writer_agent, or code_agent. By restricting the output format, we simplify parsing, reduce ambiguity, and improve the reliability of the routing process.
+
+--------------------------------------------------------------
+
+Question 6
+
+During testing, why was "Research LangGraph" initially routed to code_agent, and how did we fix it?
+
+Initially, the Supervisor routed "Research LangGraph" to code_agent because LangGraph is a programming framework, and the prompt did not clearly distinguish between researching a topic and generating code. We improved the prompt by adding explicit decision rules stating that requests to explain, teach, compare, define, or research a topic should be routed to research_agent, while requests to generate, debug, or implement code should be routed to code_agent. This improved the intent classification accuracy.
+
+--------------------------------------------------------------
+
