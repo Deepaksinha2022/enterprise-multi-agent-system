@@ -2012,3 +2012,90 @@ Where should you handle this exception—in the Supervisor or in the ResearchAge
 The exception should be handled inside the ResearchAgent because it owns the responsibility of interacting with the search API. API-specific failures should not propagate directly to the Supervisor. Instead, the ResearchAgent should catch the exception, log it, and return a standardized error or an empty result. This keeps the Supervisor independent of implementation details, maintains loose coupling, and ensures graceful error handling.
 
 -------------------------------------------------------------
+Day 11
+
+What is the responsibility of the Writer Agent in a multi-agent system?
+
+The Writer Agent is responsible for converting research output into a structured, high-quality report. It first generates a draft using write_report(), then evaluates the draft using critique_report(), and finally produces an improved version using refine_report(). The reflect_report() function orchestrates this entire Draft → Critique → Refine workflow. All three stages use an LLM to improve the quality of the final report.
+
+-------------------------------------------------------------
+
+Question 2
+What is the Reflection Pattern, and why is it better than generating a report in a single LLM call?
+
+The Reflection Pattern is a multi-step generation strategy consisting of Draft → Critique → Refine. Instead of returning the first draft, the system first reviews it for clarity, completeness, structure, and factual correctness, then uses that feedback to generate an improved version. This generally produces higher-quality reports than a single LLM call because the model has an opportunity to evaluate and improve its own output. However, the reflection prompt should be constrained to avoid introducing new facts or hallucinations.
+
+------------------------------------------------------------
+
+Question 3
+Why did we separate write_report(), critique_report(), and refine_report() into three different functions instead of one large function?
+
+We separated write_report(), critique_report(), and refine_report() to follow the Single Responsibility Principle and Separation of Concerns. Each function performs one well-defined task: generating a draft, reviewing it, or refining it. This results in low coupling and high cohesion, making the Writer Agent easier to test, maintain, extend, and modify independently. Although it introduces more functions, it significantly improves the overall architecture and scalability of the system.
+
+-------------------------------------------------------------
+
+Question 4
+
+Why did we modify the reflection prompt to say "Do not introduce new facts"?
+
+We modified the reflection prompt to instruct the LLM not to introduce new facts because the Writer Agent should only improve the existing report, not generate additional knowledge. LLMs are probabilistic models and may hallucinate or add unsupported information during refinement. By explicitly constraining the reflection prompt, we improve faithfulness to the original research while still enhancing clarity, structure, and readability.
+
+--------------------------------------------------------------
+
+Question 5
+What is the difference between critique_report() and refine_report()?
+
+critique_report() reviews the draft and identifies issues related to factual correctness, clarity, completeness, and structure. It produces feedback only and does not modify the report. refine_report() takes both the original draft and the critique as input, then rewrites the report by incorporating the suggested improvements. In short, critique_report() evaluates, while refine_report() improves.
+
+Question 6
+Why did we create reflect_report() instead of calling write_report(), critique_report(), and refine_report() separately every time?
+
+We created reflect_report() to provide a single entry point for the complete reflection workflow. Instead of requiring the caller to invoke write_report(), critique_report(), and refine_report() separately, reflect_report() orchestrates these steps internally. This simplifies the API, hides implementation details, improves maintainability, and allows future changes to the reflection process without affecting the calling code.
+
+------------------------------------------------------------
+
+Question 7
+During testing, what improvement did you observe in the refined report compared to the draft, and what limitation did you notice?
+
+The refined report showed better structure, organization, and readability than the initial draft. However, during testing we observed that the refinement stage introduced new information that was not present in the original research, leading to hallucinations. To address this, we strengthened the reflection prompt by explicitly instructing the LLM not to introduce new facts and to improve only the wording, structure, and clarity while remaining faithful to the provided content.
+
+-------------------------------------------------------------
+
+Describe the complete Writer Agent workflow from receiving the research output until producing the final refined report.
+
+Explain it step by step, exactly as you would in an interview. This is the most important question for Day 11.
+
+he Writer Agent receives the research output as input. The reflect_report() function acts as the orchestrator for the entire workflow. First, it calls write_report(), which uses the LLM and the Writer Prompt to generate a structured draft containing sections such as the title, executive summary, main findings, and conclusion. Next, the draft is passed to critique_report(), which uses another LLM call to review the report for factual correctness, clarity, completeness, and structure without introducing new facts. Finally, both the draft and the critique are passed to refine_report(), which uses a third LLM call to incorporate the suggested improvements and generate the final refined report. The reflect_report() function itself does not invoke the LLM; it simply orchestrates the Draft → Critique → Refine workflow and returns the final output.
+
+-------------------------------------------------------------
+
+Day - 12
+
+Question 1
+
+What is the responsibility of the Code Agent in a multi-agent system?
+
+The Code Agent is responsible for generating Python code from a user task, executing it in a sandboxed environment, collecting the execution results (stdout, stderr, and returncode), debugging the code if execution fails, and iteratively refining it until it succeeds or reaches the maximum number of iterations. The solve_task() function orchestrates the entire workflow, while individual functions such as generate_code(), execute_code(), debug_code(), and clean_code() follow the Separation of Concerns principle, making the system modular and maintainable.
+
+Question 2
+
+Why do we execute AI-generated code inside a Docker sandbox instead of directly on the host machine?
+
+We execute AI-generated code inside a Docker sandbox because LLM-generated code cannot be fully trusted. Docker provides an isolated environment where the code runs without directly accessing the host operating system, reducing security risks. It also provides a reproducible environment with consistent dependencies and prevents environment conflicts. After execution, the container is removed, leaving the host machine unaffected.
+
+Question 3
+
+What is the purpose of stdout, stderr, and returncode, and how does the Code Agent use them?
+
+stdout contains the normal output produced by the program, such as the output of print() statements. stderr contains error messages, warnings, or exceptions generated during execution. returncode indicates whether the program executed successfully: 0 means success, while a non-zero value indicates failure. The Code Agent uses stderr and returncode to determine whether debugging is required. If returncode is non-zero (or if warnings are treated as failures), the agent invokes debug_code() and retries execution until the code succeeds or the maximum number of iterations is reached.
+
+Question 4
+Why did we create separate functions (generate_code(), execute_code(), debug_code(), clean_code()) instead of one large function?
+
+We separated the Code Agent into generate_code(), execute_code(), debug_code(), and clean_code() to follow the Single Responsibility Principle and Separation of Concerns. Each function performs one well-defined task, making the system modular, maintainable, and easier to test. This results in low coupling and high cohesion. The solve_task() function acts as the orchestrator, coordinating these components without mixing their responsibilities. This design also makes it easy to replace or improve individual components without affecting the rest of the system.
+
+Question 6
+
+Explain the complete Code Agent workflow from receiving a user task until returning the final result. (This is the most important interview question for Day 12.)
+
+When the Code Agent receives a user task, it combines the task with the CODE_PROMPT and sends it to the LLM through generate_code(). The generated output is passed through clean_code() to remove Markdown formatting such as code fences, ensuring that only executable Python code remains. Next, execute_code() writes the code to a temporary Python file and executes it inside a Docker sandbox, returning stdout, stderr, and returncode. The solve_task() function orchestrates the entire workflow. If returncode is 0 (and no warnings are treated as failures), the execution result is returned. Otherwise, the stderr is passed to debug_code(), which uses another LLM call to fix the code. The corrected code is executed again, and this process repeats until the code succeeds or the maximum number of iterations is reached. This modular design follows Separation of Concerns, providing high cohesion, low coupling, maintainability, and scalability.
