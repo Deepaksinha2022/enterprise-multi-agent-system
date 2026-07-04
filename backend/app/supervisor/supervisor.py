@@ -47,9 +47,9 @@ code_agent
 Do not explain your answer.
 """
 
-def supervisor(task: str):
+async def supervisor(task: str):
 
-    response = llm.invoke(
+    response = await llm.invoke(
     SUPERVISOR_PROMPT + "\n\nTask: " + task
     )
 
@@ -63,3 +63,26 @@ def supervisor(task: str):
         return route_task(task)
 
     return agent
+
+import asyncio
+
+from app.agents.research_agent import ResearchAgent
+
+from app.code.code_agent import solve_task
+
+research_agent = ResearchAgent()
+
+async def execute_parallel(task: str):
+
+    research_result, code_result = await asyncio.wait_for(
+    asyncio.gather(
+        research_agent.research(task),
+        solve_task(task)
+    ),
+    timeout=60
+    )
+
+    return {
+        "research": research_result,
+        "code": code_result
+    }

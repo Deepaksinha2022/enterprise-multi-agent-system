@@ -19,7 +19,7 @@ class ResearchAgent:
             max_results=5
             )
 
-    def research(self, query: str):
+    async def research(self, query: str):
         
         response = self.search(query)
 

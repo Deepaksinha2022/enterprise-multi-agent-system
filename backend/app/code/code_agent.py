@@ -40,9 +40,9 @@ def clean_code(code: str):
         .strip()
     )
 
-def generate_code(task: str):
+async def generate_code(task: str):
 
-    response = llm.invoke(
+    response = await llm.ainvoke(
         CODE_PROMPT +
         "\n\nTask:\n" +
         task
@@ -74,7 +74,7 @@ def execute_code(code: str):
             "python",
             "/app/code.py"
         ],
-        cbnzgatvbnapture_output=True,
+        capture_output=True,
         text=True
     )
     os.remove(filename)
@@ -86,9 +86,9 @@ def execute_code(code: str):
     }
 
 
-def debug_code(code: str, error: str):
+async def debug_code(code: str, error: str):
 
-    response = llm.invoke(
+    response = await llm.ainvoke(
         DEBUG_PROMPT +
         f"""
 
@@ -102,9 +102,9 @@ Error:
 
     return clean_code(response.content)
 
-def solve_task(task: str, max_iterations: int = 3):
+async def solve_task(task: str, max_iterations: int = 3):
 
-    code = generate_code(task)
+    code = await generate_code(task)
 
     for _ in range(max_iterations):
 
@@ -113,7 +113,7 @@ def solve_task(task: str, max_iterations: int = 3):
         if result["returncode"] == 0:
             return code, result
 
-        code = debug_code(
+        code = await debug_code(
             code,
             result["stderr"]
         )
