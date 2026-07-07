@@ -2099,3 +2099,127 @@ Question 6
 Explain the complete Code Agent workflow from receiving a user task until returning the final result. (This is the most important interview question for Day 12.)
 
 When the Code Agent receives a user task, it combines the task with the CODE_PROMPT and sends it to the LLM through generate_code(). The generated output is passed through clean_code() to remove Markdown formatting such as code fences, ensuring that only executable Python code remains. Next, execute_code() writes the code to a temporary Python file and executes it inside a Docker sandbox, returning stdout, stderr, and returncode. The solve_task() function orchestrates the entire workflow. If returncode is 0 (and no warnings are treated as failures), the execution result is returned. Otherwise, the stderr is passed to debug_code(), which uses another LLM call to fix the code. The corrected code is executed again, and this process repeats until the code succeeds or the maximum number of iterations is reached. This modular design follows Separation of Concerns, providing high cohesion, low coupling, maintainability, and scalability.
+
+-------------------------------------------------------------
+
+Day - 13
+
+gather() → "Run everything together and give me all the results."
+wait() → "Run everything together, tell me which tasks finished, and I'll decide what to do."
+wait_for() → "Run this operation, but cancel it if it takes longer than the timeout."
+
+Question 1
+What is parallel execution in a multi-agent system, and why did we implement it?
+
+Parallel execution is a technique where independent agents execute concurrently instead of waiting for each other. In our project, the Supervisor dispatches the Research Agent and Code Agent simultaneously using asyncio.gather(). Since both agents perform I/O-bound operations such as LLM calls and API requests, running them in parallel reduces idle waiting time and lowers the overall response latency. We verified this by benchmarking serial and parallel execution, where parallel execution completed significantly faster.
+
+Question 2
+Why is asyncio particularly suitable for our multi-agent system instead of normal synchronous execution?
+
+asyncio is well suited for our multi-agent system because most of our operations are I/O-bound, such as LLM calls, Tavily API requests, and network communication. Instead of blocking while waiting for these operations to complete, asyncio allows the event loop to execute other coroutines, improving resource utilization and reducing latency. We use async/await for asynchronous execution, asyncio.gather() to run independent agents concurrently, asyncio.wait() when finer control over completed and pending tasks is needed, and asyncio.wait_for() to enforce execution timeouts.
+
+Question 3
+What is the difference between serial execution and parallel execution, and how did you prove that parallel execution was better in your project?
+
+In serial execution, the Research Agent and Code Agent execute one after another, so the total execution time is approximately the sum of their individual execution times. In parallel execution, the Supervisor dispatches both agents concurrently using asyncio.gather(), allowing them to run independently. As a result, the total execution time is approximately equal to the longest-running task rather than the sum of both tasks. We verified this through benchmarking in our project: serial execution took about 63.5 seconds, while parallel execution completed in about 50.5 seconds, demonstrating a noticeable reduction in latency.
+
+Question 4
+Why did we use asyncio.gather() instead of asyncio.wait() in our project?
+
+We used asyncio.gather() because our Supervisor requires the outputs of both the Research Agent and the Code Agent before it can proceed. gather() executes all tasks concurrently and returns their results in the same order as they were submitted. By default, if any task raises an exception, the entire gather() call fails, which is acceptable for our workflow because both agent outputs are mandatory. In contrast, asyncio.wait() returns completed and pending tasks, giving the programmer control over whether to retry, cancel, or continue with partial results. Since our business logic required all agent outputs, asyncio.gather() was the simpler and more appropriate choice.
+
+Question 5
+Why did we wrap asyncio.gather() inside asyncio.wait_for()?
+
+We wrapped asyncio.gather() inside asyncio.wait_for() to prevent the Supervisor from waiting indefinitely if one or more agents become slow or unresponsive. asyncio.wait_for() applies a timeout to the entire parallel execution. If all agents complete within the specified time, their results are returned. Otherwise, a TimeoutError is raised, allowing the Supervisor to handle the failure gracefully instead of hanging forever. This improves the reliability and responsiveness of the system.
+
+Question 6 (Final & Most Important)
+
+Explain the complete Day 13 workflow from the moment the Supervisor receives a task until the parallel results are returned.
+
+Once the Supervisor has identified that the user's request requires both the Research Agent and the Code Agent, it invokes the execute_parallel() function. This function dispatches both agents concurrently using asyncio.gather(). The Research Agent performs the Tavily API search, while the Code Agent generates and executes code independently. Since both operations are primarily I/O-bound, they run concurrently instead of waiting for each other. We wrap asyncio.gather() inside asyncio.wait_for() to ensure the entire parallel execution completes within a specified timeout. If both agents finish successfully, their outputs are collected, merged into a single response, and returned to the Supervisor. If the timeout is exceeded or an exception occurs, the Supervisor can handle the failure gracefully.
+
+-------------------------------------------------------------------------------
+Day - 14 
+
+Question - 1
+Why do we use Celery in our Multi-Agent System?
+
+We use Celery to offload long-running tasks from FastAPI to background workers. Instead of executing tasks like AI inference or document processing during the HTTP request, FastAPI submits them to a Redis broker. Celery workers consume those tasks asynchronously, execute them, and store the results in the result backend. This keeps FastAPI responsive and improves scalability and throughput.
+
+------------------------------------------------------------------------------
+
+Question - 2
+
+Explain the difference between:
+FastAPI
+Celery
+Redis
+Celery Worker
+What is the responsibility of each
+
+FastAPI receives HTTP requests and submits long-running tasks using Celery. Celery is the task queue framework, and its application object holds the configuration, registered tasks, broker, and backend settings. Redis acts as both the broker (storing pending tasks) and the result backend (storing completed task results). Celery Workers are separate processes that continuously consume tasks from Redis, execute them, and store the results back in the backend.
+
+-------------------------------------------------------------------------------
+
+Question - 3
+
+What is the difference between a Redis Broker and a Redis Result Backend?
+
+The Redis Broker stores pending tasks until a Celery worker consumes them. The Redis Result Backend stores the output of completed tasks so the client can retrieve the result later using methods like result.get().
+
+-------------------------------------------------------------------------------
+
+Question - 4
+Why do we use delay() instead of calling the function directly?
+
+Calling run_research() executes the function synchronously in the current process and blocks until it finishes. Calling run_research.delay() submits the task asynchronously to the Redis broker through Celery and immediately returns an AsyncResult. A Celery worker later consumes and executes the task, keeping FastAPI responsive.
+
+------------------------------------------------------------------------------
+
+What is the purpose of @celery_app.task?
+
+Why do we write:
+@celery_app.task
+def run_research(...):
+    ...
+instead of just:
+def run_research(...):
+    ...
+
+@celery_app.task is a decorator that registers a Python function as a Celery task. Once registered, the task becomes part of Celery's task registry and can be executed asynchronously using methods like delay() or apply_async(). Without this decorator, the function behaves like a normal Python function and cannot be dispatched to Celery workers.
+
+----------------------------------------------------------------------------
+What is the purpose of task_routes? Why did we create separate research and default queues instead of putting everything into one queue?
+
+task_routes tells Celery which queue a task should be sent to. Instead of putting all tasks into one default queue, we can route different task types to different queues. For example, research tasks go to the research queue while simple tasks go to the default queue. This allows dedicated workers to process specific workloads independently, improving scalability and preventing long-running tasks from blocking shorter ones.
+
+----------------------------------------------------------------------------------
+
+Suppose your Research Agent takes 2 minutes to execute, while your Email task takes only 2 seconds.
+Why is having separate queues better than putting both tasks into the same queue?
+
+Answer:-
+
+Separate queues allow different task types to be processed by dedicated workers. Long-running tasks such as research or AI inference won't block short tasks like sending emails or notifications. This improves throughput, scalability, and resource utilization because each worker pool can be scaled independently based on workload.
+
+---------------------------------------------------------------------------------
+
+This is one of the most common Celery interview questions.
+Explain the complete flow of:
+run_research.delay("What is RAG?")
+Start from FastAPI and end at result.get().
+
+When FastAPI receives a client request, it does not execute the Research Agent directly. Instead, it calls:
+
+run_research.delay("What is RAG?")
+delay() submits the task to the Celery framework.
+Celery serializes the task into JSON using the task_serializer.
+Celery sends the serialized task to the Redis Broker.
+A Celery Worker, which is continuously listening to Redis, picks up the task from the appropriate queue (for example, the research queue).
+The worker deserializes the task and executes the run_research() function, which invokes the Research Agent.
+After execution, Celery serializes the result into JSON using the result_serializer.
+The result is stored in the Redis Result Backend.
+When the client (or FastAPI) calls:
+result.get()
+Celery retrieves the stored result from the Result Backend and returns it.
