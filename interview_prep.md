@@ -2223,3 +2223,43 @@ The result is stored in the Redis Result Backend.
 When the client (or FastAPI) calls:
 result.get()
 Celery retrieves the stored result from the Result Backend and returns it.
+
+--------------------------------------------------------------
+Day - 15
+Enums provide a type-safe, centralized set of allowed values. Inheriting from str makes them behave like strings for comparisons and JSON serialization, while still giving the benefits of enums such as validation and auto-completion.
+
+Question - 1
+Why did we introduce AgentMessage instead of passing a Python dict between agents?
+
+We introduced AgentMessage to provide a standardized communication format between agents. Unlike dictionaries, it has a fixed schema, reducing typos and making messages more predictable, easier to validate, and easier to maintain. It also improves readability and makes the communication protocol consistent across all agents.
+
+---------------------------------------------------------------
+
+Question 2
+What is the purpose of a Handoff object? Why not let one agent directly call another agent's method?
+
+A Handoff object represents the transfer of work from one agent to another. Instead of agents directly invoking each other's methods, they create a handoff describing the next target agent and the associated message. This reduces coupling, improves modularity, and allows the orchestrator to control workflow independently of the agents' internal implementations.
+
+-------------------------------------------------------------
+
+Question 3
+What is the difference between AgentMessage and Handoff?
+
+AgentMessage defines the content of communication, including the sender, receiver, task, and payload. A Handoff wraps that message and indicates which agent should process it next. This separates the message itself from the workflow routing logic.
+
+--------------------------------------------------------------
+
+Question - 4
+
+Why did we use an Enum (TaskType) instead of writing task names as plain strings?
+
+We use an Enum to define a fixed set of valid task types instead of arbitrary strings. This improves type safety, reduces typos, provides IDE auto-completion, and centralizes all task names in one place. By inheriting from str, enum values behave like strings, making comparisons and JSON serialization straightforward.
+
+--------------------------------------------------------------
+Question:-
+
+We are already using LangGraph, which provides a shared state. Why do we still need message passing between agents?
+
+LangGraph's shared state acts as a central memory for the workflow. Message passing is a communication mechanism between agents. In our current implementation there is some overlap, but in distributed production systems where agents run as independent services or processes, message passing decouples agents and avoids relying on shared in-memory state
+
+--------------------------------------------------------------
